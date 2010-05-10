@@ -15,5 +15,5 @@ Usage
 - `Alt-Z` on highlighted text will collapse it
 - `Alt-Z` on an indented block's top line will collapse that block
 - `Alt-Z` on a folded block will expand it 
-- `Alt-X` will expand all the collapsed blocks.
+- `Alt-X` will expand all the collapsed blocks
 
