@@ -151,10 +151,10 @@ class FoldingPyPlugin(GObject.Object, Gedit.WindowActivatable):
 	def __init__(self):
 		GObject.Object.__init__(self)
 		self._instances = {}
-	def activate(self, self.window):
-		self._instances[window] = FoldingPyWindowHelper(self, self.window)
-	def deactivate(self, self.window):
-		self._instances[window].deactivate()
-		del self._instances[window]
-	def update_ui(self, self.window):
-		self._instances[window].update_ui()
+	def do_activate(self):
+		self._instances[self.window] = FoldingPyWindowHelper(self, self.window)
+	def do_deactivate(self):
+		self._instances[self.window].deactivate()
+		del self._instances[self.window]
+	def do_update_state(self):
+		self._instances[self.window].update_ui()

@@ -6,7 +6,7 @@ A simple plugin that adds keyboard-based code folding to Gedit.
 Installation
 --------------
 
-- Move `folding.gedit-plugin` and `folding.py` into `~/.gnome2/gedit/plugins`
+- Move `folding.gedit-plugin` and `folding.py` into `~/.local/share/gedit/plugins`
 - In Gedit, go to Edit &rarr; Preferences &rarr; Plugins to enable the plugin.
 
 Usage
