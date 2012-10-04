@@ -1,6 +1,5 @@
 # -*- coding: utf-8 -*-
-import gtk
-import gedit
+from gi.repository import Gedit, GObject, Gtk
 
 ui_str = """<ui>
 	<menubar name="MenuBar">
@@ -28,7 +27,7 @@ class FoldingPyWindowHelper():
 
 	def _insert_menu(self):
 		manager = self._window.get_ui_manager()
-		self._action_group = gtk.ActionGroup("FoldingPyPluginActions")
+		self._action_group = Gtk.ActionGroup("FoldingPyPluginActions")
 		self._action_group.add_actions(
 			[
 				(
@@ -147,14 +146,15 @@ class FoldingPyWindowHelper():
 					print "SimpleFolding plugin: create fold by indent"
 
 
-class FoldingPyPlugin(gedit.Plugin):
+class FoldingPyPlugin(GObject.Object, Gedit.WindowActivatable):
+	window = GObject.property(type=Gedit.Window)
 	def __init__(self):
-		gedit.Plugin.__init__(self)
+		GObject.Object.__init__(self)
 		self._instances = {}
-	def activate(self, window):
-		self._instances[window] = FoldingPyWindowHelper(self, window)
-	def deactivate(self, window):
+	def activate(self, self.window):
+		self._instances[window] = FoldingPyWindowHelper(self, self.window)
+	def deactivate(self, self.window):
 		self._instances[window].deactivate()
 		del self._instances[window]
-	def update_ui(self, window):
+	def update_ui(self, self.window):
 		self._instances[window].update_ui()
