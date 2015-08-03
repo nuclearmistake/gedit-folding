@@ -1,81 +1,68 @@
 # -*- coding: utf-8 -*-
-from gi.repository import GObject, Gedit, Gtk
+from gi.repository import GObject, Gedit, Gio
 
-ui_str = """<ui>
-    <menubar name="MenuBar">
-        <menu name="ToolsMenu" action="Tools">
-            <placeholder name="ToolsOps_2">
-                <menuitem name="ToggleFold" action="ToggleFold"/>
-            </placeholder>
-            <placeholder name="ToolsOps_2">
-                <menuitem name="FoldDeepest" action="FoldDeepest"/>
-            </placeholder>
-            <placeholder name="ToolsOps_2">
-                <menuitem name="UnFoldAll" action="UnFoldAll"/>
-            </placeholder>
-        </menu>
-    </menubar>
-</ui>
-"""
+actions = [
+    ("fold", "<Alt>Z", "Fold/Unfold"),
+    ("fold_deepest", "<Alt>X", "Fold Deepest"),
+    ("unfold_all", "<Shift><Alt>X", "Un-Fold All")
+]
+
+
+class FoldingPyPluginAppActivatable(GObject.Object, Gedit.AppActivatable):
+
+    app = GObject.property(type=Gedit.App)
+
+    def do_activate(self):
+        self.menu_ext = self.extend_menu("tools-section")
+        for action_name, key, menu_name in actions:
+            fullname = "win." + action_name
+            self.app.add_accelerator(key, fullname, None)
+            item = Gio.MenuItem.new(_(menu_name), fullname)
+            self.menu_ext.append_menu_item(item)
+
+    def do_deactivate(self):
+        for action_name, key, menu_name in actions:
+            self.app.remove_accelerator("win." + action_name, None)
+        self.menu_ext = None
+
 
 class FoldingPyPlugin(GObject.Object, Gedit.WindowActivatable):
     __gtype_name__ = 'FoldingPyPlugin'
     window = GObject.property(type=Gedit.Window)
-    
+
     def __init__(self):
         GObject.Object.__init__(self)
-    
+
     def do_activate(self):
-        self._insert_menu()
         self.do_update_state()
-    
-    def do_deactivate(self):
-        self._remove_menu()
-        self._action_group = None
-        #self.fold_off
-    
+        for action_name, key, menu_name in actions:
+            action = Gio.SimpleAction(name=action_name)
+            action.connect('activate', getattr(self, action_name))
+            self.window.add_action(action)
+
     def do_update_state(self):
-        action_group = self._action_group
-        action_group.set_sensitive(self.window.get_active_document() != None)
         self.doc = self.window.get_active_document()
         if self.doc:
             self.view = self.window.get_active_view()
             table = self.doc.get_tag_table()
             self.fld = table.lookup('fld')
-            if self.fld == None:
-                self.fld = self.doc.create_tag('fld', foreground="#333333",
-                    paragraph_background="#aadc5c")
-            self.inv=table.lookup('inv')
-            if self.inv == None:
+            if self.fld is None:
+                self.fld = self.doc.create_tag(
+                    'fld',
+                    foreground="#333333",
+                    paragraph_background="#aadc5c"
+                )
+            self.inv = table.lookup('inv')
+            if self.inv is None:
                 self.inv = self.doc.create_tag('inv', invisible=True)
-    
-    def _insert_menu(self):
-        manager = self.window.get_ui_manager()
-        self._action_group = Gtk.ActionGroup("FoldingPyPluginActions")
-        self._action_group.add_actions([
-            ("ToggleFold", None, _("Fold/Unfold"), "<Alt>Z", _("Fold/Unfold"),
-                lambda a: self.fold()),
-            ("FoldDeepest", None, _("Fold Deepest"), "<Alt>X",
-                _("Fold Deepest"), lambda a: self.fold_deepest()),
-            ("UnFoldAll", None, _("Un-Fold All"), "<Shift><Alt>X",
-                _("Un-Fold All"), lambda a: self.fold_off())
-        ])
-        manager.insert_action_group(self._action_group, -1)
-        self._ui_id = manager.add_ui_from_string(ui_str)
-    
-    def _remove_menu(self):
-        manager = self.window.get_ui_manager()
-        manager.remove_ui(self._ui_id)
-        manager.remove_action_group(self._action_group)
-        manager.ensure_update()
-    
-    def detect_sps(self,sps):
+
+    def detect_sps(self, sps):
         sps_lstrip = sps.lstrip()
         i = sps.index(sps_lstrip)
         sps = sps[:i]
         return sps.count(' ') + sps.count('\t') * self.view.get_tab_width()
-    
-    def fold_deepest(self, action=None):
+
+    def fold_deepest(self, action, data=None):
         deepest = 0
         lines = list()
         s = self.doc.get_iter_at_line(0)
@@ -83,37 +70,42 @@ class FoldingPyPlugin(GObject.Object, Gedit.WindowActivatable):
         sg = 0
         eg = 0
         while s.forward_visible_line():
-            if s.get_char()!="\n":
-                e.set_line(s.get_line())
-                e.forward_to_line_end()
-                text = s.get_text(e)
-                if text.strip()!="":
-                    indent = self.detect_sps(text)
-                    if indent:
-                        if indent > deepest:
-                            deepest = indent
-                            lines = list()
-                            sg = s.get_line()
-                            eg = s.get_line()
-                        elif indent < deepest and eg:
-                            lines.append((sg-1, eg))
-                            eg = 0
-                        elif indent == deepest:
-                            if not eg:
-                                sg = s.get_line()
-                            eg = s.get_line()
+            if s.get_char() == "\n":
+                continue
+            e.set_line(s.get_line())
+            e.forward_to_line_end()
+            text = s.get_text(e)
+            if not text.strip():
+                continue
+            indent = self.detect_sps(text)
+            if not indent:
+                continue
+            if indent > deepest:
+                deepest = indent
+                lines = list()
+                sg = s.get_line()
+                eg = s.get_line()
+            elif indent < deepest and eg:
+                lines.append((sg-1, eg))
+                eg = 0
+            elif indent == deepest:
+                if not eg:
+                    sg = s.get_line()
+                eg = s.get_line()
         if eg:
             lines.append((sg-1, eg))
         for (sg, eg) in lines:
             s.set_line(sg)
             e.set_line(eg)
             self.fold(None, s, e)
-    def fold_off(self,action=None):
-        s , e = self.doc.get_bounds()
+
+    def unfold_all(self, action, data=None):
+        s, e = self.doc.get_bounds()
         self.doc.remove_tag(self.fld, s, e)
         self.doc.remove_tag(self.inv, s, e)
-    def fold(self, action=None, a=None, c=None):
-        if a == None:
+
+    def fold(self, action, a=None, c=None):
+        if a is None:
             a = self.doc.get_iter_at_mark(self.doc.get_insert())
         if a.has_tag(self.fld):
             try:
@@ -126,9 +118,12 @@ class FoldingPyPlugin(GObject.Object, Gedit.WindowActivatable):
                 self.doc.remove_tag(self.inv, a, b)
             except:
                 pass
-        elif (a != None and c != None) or \
-            len(self.doc.get_selection_bounds()) == 2:
-            if c == None:
+        elif (
+            a is not None
+            and c is not None  # and is stronger than or
+            or len(self.doc.get_selection_bounds()) == 2
+        ):
+            if c is None:
                 a, c = self.doc.get_selection_bounds()
             if a.get_line() == c.get_line():
                 return
@@ -136,8 +131,9 @@ class FoldingPyPlugin(GObject.Object, Gedit.WindowActivatable):
             a.set_line_offset(0)
             b.forward_line()
             c.forward_line()
-            self.doc.apply_tag(self.fld,a,b)
-            # TODO: Don't remove already folded tags and keep track of nested tags
+            self.doc.apply_tag(self.fld, a, b)
+            # TODO: Don't remove already folded tags
+            # and keep track of nested tags
             self.doc.remove_tag(self.fld, b, c)
             self.doc.remove_tag(self.inv, b, c)
             self.doc.apply_tag(self.inv, b, c)
@@ -147,30 +143,29 @@ class FoldingPyPlugin(GObject.Object, Gedit.WindowActivatable):
             sfold = a.copy()
             sfold.forward_line()
             text = a.get_text(sfold)
-            if text.strip() != "":
+            if text.strip():
                 main_indent = self.detect_sps(text)
                 fin = a.copy()
                 e = a.copy()
                 while 1 == 1:
-                    if e.forward_line():
-                        if e.get_char() == "\n":
-                            continue
-                        ne = e.copy()
-                        ne.forward_to_line_end()
-                        text = e.get_text(ne)
-                        if text.strip() == "":
-                            continue
-                        child_indent = self.detect_sps(text)
-                        if child_indent <= main_indent:
-                            break
-                        else:
-                            line = e.get_line()
-                        fin.set_line(line)
-                        fin.forward_line()
-                    else:
+                    if not e.forward_line():
                         fin.forward_to_end()
                         line = fin.get_line()
                         break
+                    if e.get_char() == "\n":
+                        continue
+                    ne = e.copy()
+                    ne.forward_to_line_end()
+                    text = e.get_text(ne)
+                    if text.strip() == "":
+                        continue
+                    child_indent = self.detect_sps(text)
+                    if child_indent <= main_indent:
+                        break
+                    line = e.get_line()
+                    fin.set_line(line)
+                    fin.forward_line()
+
                 if a.get_line() < line:
                     self.doc.apply_tag(self.fld, a, sfold)
                     # TODO: Don't remove already folded tags and
@@ -178,3 +173,4 @@ class FoldingPyPlugin(GObject.Object, Gedit.WindowActivatable):
                     self.doc.remove_tag(self.fld, sfold, fin)
                     self.doc.remove_tag(self.inv, sfold, fin)
                     self.doc.apply_tag(self.inv, sfold, fin)
+

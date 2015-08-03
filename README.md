@@ -7,7 +7,16 @@ Installation
 --------------
 
 ####Unix/Linux
-* Move `folding.plugin` and `folding.py` into `~/.local/share/gedit/plugins`
+* Simplest: Move `folding.plugin` and `folding.py` into `~/.local/share/gedit/plugins`
+* More convenient:
+```
+cd ~/.local/share/gedit/plugins
+git clone https://github.com/aeischeid/gedit-folding
+```
+You can replace aeischeid by other developer - pick active one: https://github.com/aeischeid/gedit-folding/network
+
+Then
+
 * In Gedit, go to Edit &rarr; Preferences &rarr; Plugins to enable the plugin.
 
 ####Windows
