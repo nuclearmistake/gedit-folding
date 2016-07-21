@@ -11,9 +11,9 @@ Installation
 * More convenient:
 ```
 cd ~/.local/share/gedit/plugins
-git clone https://github.com/aeischeid/gedit-folding
+git clone https://github.com/frank-hanner/gedit-folding
 ```
-You can replace aeischeid by other developer - pick active one: https://github.com/aeischeid/gedit-folding/network
+You can replace frank-hanner by other developer - pick active one: https://github.com/aeischeid/gedit-folding/network
 
 Then
 
@@ -26,8 +26,9 @@ Then
 Usage
 --------
 
-* `Alt-Z` on selected lines will collapse them
-* `Alt-Z` on an indented block's top line will collapse that block
+* `Alt-Z` on an indented block's top line (or within the block) will collapse that block
 * `Alt-Z` on a folded block will expand it
-* `Alt-X` will collapse all blocks on the deepest indention column (you can keep pressing Alt-X until all indention levels are folded)
-* `Shift-Alt-X` will expand all the collapsed blocks
+* `Shift-Alt-Z` will expand all collapsed blocks
+* `Alt-X` will collapse all blocks within/deeper than the current one
+* `Shift-Alt-X` will collapse everything
+* `Ctrl-Alt-X` will collapse all blocks on the deepest indention column (you can keep pressing Alt-X until all indention levels are folded)
