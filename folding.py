@@ -51,18 +51,28 @@ class FoldingPyPluginAppActivatable( GObject.Object, Gedit.AppActivatable ):
 
     app = GObject.property(type=Gedit.App)
 
+    def __init__(self):
+        self.menu_ext = None
+        GObject.Object.__init__(self)
+
     def do_activate( self ):
-        self.menu_ext = self.extend_menu("tools-section")
-        for action_name, key, menu_name in actions:
-            fullname = "win." + action_name
-            self.app.add_accelerator(key, fullname, None)
-            item = Gio.MenuItem.new(_(menu_name), fullname)
-            self.menu_ext.append_menu_item(item)
+        if hasattr(self, "extend_menu"):
+            self.menu_ext = self.extend_menu("tools-section")
+            for action_name, key, menu_name in actions:
+                fullname = "win." + action_name
+                self.app.add_accelerator(key, fullname, None)
+                item = Gio.MenuItem.new(_(menu_name), fullname)
+                self.menu_ext.append_menu_item(item)
+        else:
+            for action_name, key, menu_name in actions:
+                fullname = "win." + action_name
+                self.app.add_accelerator(key, fullname, None)
 
     def do_deactivate( self ):
-        for action_name, key, menu_name in actions:
-            self.app.remove_accelerator("win." + action_name, None)
-        self.menu_ext = None
+        if self.menu_ext != None:
+            for action_name, key, menu_name in actions:
+                self.app.remove_accelerator("win." + action_name, None)
+            self.menu_ext = None
 
 
 class FoldingPyPlugin( GObject.Object, Gedit.WindowActivatable ):
